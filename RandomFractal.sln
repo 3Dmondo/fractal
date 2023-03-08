@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33103.184
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RandomFractal", "RandomFractal\RandomFractal.csproj", "{CF6EA13F-AB44-420C-8A60-2E615201C336}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mandelbrot", "Mandelbrot\Mandelbrot.csproj", "{9E1A7C98-CBC9-4F4E-ACFE-9DE28CB8CB09}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CF6EA13F-AB44-420C-8A60-2E615201C336}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CF6EA13F-AB44-420C-8A60-2E615201C336}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CF6EA13F-AB44-420C-8A60-2E615201C336}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CF6EA13F-AB44-420C-8A60-2E615201C336}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9E1A7C98-CBC9-4F4E-ACFE-9DE28CB8CB09}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9E1A7C98-CBC9-4F4E-ACFE-9DE28CB8CB09}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9E1A7C98-CBC9-4F4E-ACFE-9DE28CB8CB09}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9E1A7C98-CBC9-4F4E-ACFE-9DE28CB8CB09}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {9237567B-CED1-4D39-AA02-0B6ACC983277}
+	EndGlobalSection
+EndGlobal

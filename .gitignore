@@ -1,0 +1,7 @@
+*.msi
+.vscode/
+obj/
+bin/
+.vs/
+*.user
+TestResults/
