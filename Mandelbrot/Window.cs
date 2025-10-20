@@ -1,4 +1,4 @@
-﻿using OpenTK.Graphics.OpenGL4;
+using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
@@ -12,7 +12,7 @@ namespace Mandelbrot
     private int Vbo;
     private int Vao;
 
-    private Vector2d Center = new Vector2d(0, 0);
+    private Vector2d Center = new Vector2d(0.5, 0);
     private double Scale = 1;
     private Shader Shader;
 

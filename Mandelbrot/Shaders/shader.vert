@@ -1,4 +1,4 @@
-﻿#version 330 core
+#version 330 core
 precision highp float;
 
 uniform vec2 Center;
