@@ -5,3 +5,4 @@ bin/
 .vs/
 *.user
 TestResults/
+HelloTriangleWasm/

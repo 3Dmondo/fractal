@@ -1,0 +1,17 @@
+@page "/"
+
+<PageTitle>Mandelbrot</PageTitle>
+
+<canvas id="canvas" class="sim-canvas"></canvas>
+
+<style>
+    html, body { margin:0; padding:0; height:100%; }
+    .sim-canvas {
+      width:100vw;
+      height:100vh;
+      display:block;
+      background:#000; /* ensure visible area */
+    }
+</style>
+
+<script type='text/javascript' src="webgpu.js"></script>
