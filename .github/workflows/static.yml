@@ -51,7 +51,7 @@ jobs:
         run: dotnet workload restore
 
       - name: Publish app
-        run: dotnet publish Mandelbrot.Web/Mandelbrot.Web.csproj -c Release -p:PublishTrimmed=true -p:RunAOTCompilation=true -o release --nologo
+        run: dotnet publish Mandelbrot.Web/Mandelbrot.Web.csproj -c Release -p:PublishTrimmed=true -p:RunAOTCompilation=true --nologo
 
       - name: Rewrite base href
         uses: SteveSandersonMS/ghaction-rewrite-base-href@5b54862a8831e012d4f1a8b2660894415fdde8ec # v1.1.0

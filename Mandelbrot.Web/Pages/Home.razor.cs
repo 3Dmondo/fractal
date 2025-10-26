@@ -36,6 +36,10 @@ public partial class Home
 
   private WebGpuViewState? viewState;
 
+	private bool showHelpOverlay = false;
+	public void ShowHelpOverlay() => showHelpOverlay = true;
+	public void HideHelpOverlay() => showHelpOverlay = false;
+
   public Home() { _instance = this; }
 
   /// <summary>
@@ -352,4 +356,5 @@ public partial class Home
   {
     draw(swapChain, device, queue, pipeline, bindgroup, vbuffer, ibuffer);
   }
+
 }

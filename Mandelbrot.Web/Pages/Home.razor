@@ -2,6 +2,32 @@
 
 <PageTitle>Mandelbrot</PageTitle>
 
+<!-- Help Button -->
+<button class="help-btn" @onclick="ShowHelpOverlay">
+    ?
+</button>
+
+@if (showHelpOverlay)
+{
+    <div class="help-overlay">
+        <div class="help-content">
+            <button class="close-btn" @onclick="HideHelpOverlay">&#10005;</button>
+            <h2>Mandelbrot Web Demo</h2>
+            <p>
+                This page renders the Mandelbrot set using WebGPU in your browser.<br />
+                <ul>
+                    <li>Pan: Drag with mouse or touch</li>
+                    <li>Zoom: Mouse wheel or pinch gesture</li>
+                    <li>Resize: Window/canvas adapts automatically</li>
+                </ul>
+                <br />
+                The colors show how quickly each point escapes to infinity.<br />
+                Try zooming in to explore fractal detail!
+            </p>
+        </div>
+    </div>
+}
+
 <canvas id="canvas" class="sim-canvas"
         @onpointerdown="OnPointerDown"
         @onpointermove="OnPointerMove"
@@ -19,4 +45,63 @@
       display:block;
       background:#000; /* ensure visible area */
     }
+
+    .help-btn {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #222;
+        color: #fff;
+        font-size: 2em;
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        cursor: pointer;
+        z-index: 1001;
+        transition: background 0.2s;
+    }
+
+        .help-btn:hover {
+            background: #444;
+        }
+
+    .help-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .help-content {
+        background: #fff;
+        color: #222;
+        padding: 2em 2em 1em 2em;
+        border-radius: 12px;
+        max-width: 400px;
+        box-shadow: 0 4px 32px rgba(0,0,0,0.3);
+        position: relative;
+    }
+
+    .close-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: none;
+        border: none;
+        font-size: 1.5em;
+        color: #888;
+        cursor: pointer;
+    }
+
+        .close-btn:hover {
+            color: #222;
+        }
 </style>
