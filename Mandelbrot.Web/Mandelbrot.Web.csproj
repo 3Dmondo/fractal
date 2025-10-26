@@ -16,4 +16,8 @@
     <PackageReference Include="Evergine.Bindings.WebGPU" Version="2025.9.3.22" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Shaders\*.wgsl" />
+  </ItemGroup>
+
 </Project>
