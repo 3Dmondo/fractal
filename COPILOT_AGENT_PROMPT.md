@@ -51,7 +51,7 @@ Test 1 (manual):
 
 If Step 1 fails: ask questions — e.g. whether to change the vertex buffer layout or to draw a full-screen quad via vertex_index in the vertex shader.
 
-Step 2 — Add view uniforms (center and scale) and hook them up in C#
+Step 2 — Add view uniforms (center and scale) and hook them up in C# — COMPLETE
 - Define a uniform struct in WGSL, e.g.:
   ```wgsl
   struct ViewParams {
@@ -70,6 +70,21 @@ Minimal changes:
 
 Test 2 (manual):
 - Rebuild and run. Confirm the Mandelbrot renders with the initial center/scale values.
+
+Before Step 3 — ensure initial rendering matches canvas size and aspect ratio
+- To match desktop `Mandelbrot/Window.cs` behavior, compute the uniform `view` from the canvas aspect ratio and initial `scale`:
+  - Aspect = height / width
+  - view = (aspect, 1) / scale
+- Update `Home.razor.cs` when creating the uniform buffer to compute `viewX`/`viewY` from the measured canvas `width` and `height`, for example:
+  ```csharp
+  float scale = 1.0f;
+  float viewX = (float)height / (float)width / scale; // aspect / scale
+  float viewY = 1.0f / scale;
+  ```
+- Use these values when writing the uniform buffer so the first rendered frame respects canvas aspect ratio and matches the desktop view math.
+
+Test (manual):
+- Rebuild and run. The Mandelbrot rendering should not appear stretched; panning and zoom math later will match the desktop `Window.cs` conventions.
 
 Step 3 — Implement panning (mouse/touch drag) and zoom (wheel/pinch)
 - Preferred approach: use Blazor pointer events on the canvas in `Home.razor`:
