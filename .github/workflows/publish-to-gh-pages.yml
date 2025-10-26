@@ -1,0 +1,39 @@
+name: Publish Mandelbrot.Web to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install wasm-tools workload
+        run: dotnet workload install wasm-tools
+
+      - name: Publish Blazor WebAssembly project (AOT, trimmed)
+        run: |
+          dotnet publish Mandelbrot.Web/Mandelbrot.Web.csproj -c Release -p:PublishTrimmed=true -p:RunAOTCompilation=true -o release --nologo
+          cp release/wwwroot/index.html release/wwwroot/404.html
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: release/wwwroot
+          publish_branch: gh-pages
+          force_orphan: true
+
+      - name: Configure GitHub Pages
+        run: |
+          echo 'Mandelbrot.Web published to GitHub Pages.'
