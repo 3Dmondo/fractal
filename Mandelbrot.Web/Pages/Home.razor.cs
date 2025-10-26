@@ -189,7 +189,7 @@ public partial class Home
     viewState.CenterX = 0.5f;
     viewState.CenterY = 0.0f;
     viewState.Scale = 1.0f;
-    viewState.MaxIter = 2000;
+    viewState.MaxIter = 1000;
     viewState.WriteToBuffer();
     var bindGroupEntry = new WGPUBindGroupEntry() {
       binding = 0,
@@ -245,7 +245,7 @@ public partial class Home
   public void OnWheel(WheelEventArgs e)
   {
     if (viewState == null) return;
-    float delta = viewState.Scale * 0.1f * (float)(-e.DeltaY / 100.0f);
+    float delta = viewState.Scale * 0.1f * (float)(e.DeltaY / 100.0f);
     var newScale = viewState.Scale + delta;
     if (newScale < 0.0001f || newScale > 2.0f) return;
     float mouseX = (float)e.ClientX;
