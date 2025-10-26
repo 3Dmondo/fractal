@@ -1,8 +1,7 @@
 #version 330 core
 precision highp float;
 
-uniform vec2 Center;
-uniform vec2 View;
+
 uniform float AspectRatio;
 layout(location = 0) in vec2 Position;
 

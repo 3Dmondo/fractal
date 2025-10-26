@@ -423,11 +423,13 @@ fn fs_main(@location(0) vPos : vec2<f32>) -> @location(0) vec4<f32> {
     lastPointerX = (float)e.ClientX;
     lastPointerY = (float)e.ClientY;
     // Convert screen delta to world delta
+
     float aspect = (float)canvasHeight / (float)canvasWidth;
     float viewX = aspect / scale;
     float viewY = 1.0f / scale;
-    centerX -= dx / (float)canvasWidth * viewX * -1.0f;
-    centerY -= dy / (float)canvasHeight * viewY;
+
+    centerX -= -1.0f * dx / (float)canvasWidth / viewX * 2.0f;
+    centerY -= dy / (float)canvasHeight / viewY * 2.0f;
     UpdateUniformBuffer();
     Redraw();
   }
@@ -439,23 +441,44 @@ fn fs_main(@location(0) vPos : vec2<f32>) -> @location(0) vec4<f32> {
 
   public void OnWheel(WheelEventArgs e)
   {
-    // Zoom at pointer position
+    float delta = scale * 0.1f * (float)(-e.DeltaY / 100.0f);
+    if(scale + delta < 0.0001f) return; // prevent zooming too far out
+    if(scale + delta > 2.0f) return; // prevent zooming too far in
+
+
+    // Zoom at pointer position (OpenGL logic)
     float mouseX = (float)e.ClientX;
     float mouseY = (float)e.ClientY;
+
     float aspect = (float)canvasHeight / (float)canvasWidth;
     float viewX = aspect / scale;
     float viewY = 1.0f / scale;
-    float worldX = centerX + ((mouseX / (float)canvasWidth) * 2.0f - 1.0f) * viewX * -1.0f;
-    float worldY = centerY + ((mouseY / (float)canvasHeight) * 2.0f - 1.0f) * viewY;
-    float delta = scale * 0.1f * (float)(-e.DeltaY / 100.0f);
+
+    // Map mouse position to [-1, 1] range
+    float normX = mouseX / (float)canvasWidth * 2.0f - 1.0f;
+    float normY = mouseY / (float)canvasHeight * 2.0f - 1.0f;
+
+    // Invert X axis to match OpenGL logic
+    normX *= -1.0f;
+
+    // Compute world mouse position before zoom
+    float worldMouseX = centerX + normX / viewX;
+    float worldMouseY = centerY + normY / viewY;
+
     scale += delta;
-    // Keep zoom centered at pointer
+
+    // Compute new view after zoom
     float newViewX = aspect / scale;
     float newViewY = 1.0f / scale;
-    float newWorldX = centerX + ((mouseX / (float)canvasWidth) * 2.0f - 1.0f) * newViewX * -1.0f;
-    float newWorldY = centerY + ((mouseY / (float)canvasHeight) * 2.0f - 1.0f) * newViewY;
-    centerX -= (worldX - newWorldX);
-    centerY -= (worldY - newWorldY);
+
+    // Compute world mouse position after zoom
+    float newWorldMouseX = centerX + normX / newViewX;
+    float newWorldMouseY = centerY + normY / newViewY;
+
+    // Adjust center so zoom is focused at pointer
+    centerX += (worldMouseX - newWorldMouseX);
+    centerY += (worldMouseY - newWorldMouseY);
+
     UpdateUniformBuffer();
     Redraw();
   }
