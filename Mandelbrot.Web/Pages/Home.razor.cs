@@ -115,12 +115,11 @@ public partial class Home
     // Load shaders from embedded resources
     string vertShader = ResourceReader.ReadString("Mandelbrot.Web.Shaders.mandelbrot.vert.wgsl");
     string fragShader = ResourceReader.ReadString("Mandelbrot.Web.Shaders.mandelbrot.frag.wgsl");
-    // Concatenate for create_shader (if needed)
     var triangleWGSL = vertShader + "\n" + fragShader;
     var shader_triangle = create_shader(triangleWGSL, label: default, device);
+
     WGPUVertexAttribute* vertex_attrib = stackalloc WGPUVertexAttribute[]
     {
-      // position: x, y
       new WGPUVertexAttribute()
       {
         format = WGPUVertexFormat.Float32x2,
@@ -133,28 +132,11 @@ public partial class Home
       attributeCount = 1,
       attributes = vertex_attrib,
     };
-    var entries = stackalloc WGPUBindGroupLayoutEntry[]
-    {
-      new WGPUBindGroupLayoutEntry()
-      {
-        binding = 0,
-        visibility = (WGPUShaderStage)(WGPUShaderStage.Vertex | WGPUShaderStage.Fragment),
-        buffer = new WGPUBufferBindingLayout()
-        {
-          type = WGPUBufferBindingType.Uniform,
-        },
-      },
-    };
-    var bindGroupLayoutDescriptor = new WGPUBindGroupLayoutDescriptor() {
-      entryCount = 1,
-      entries = entries,
-    };
-    var bindgroup_layout = wgpuDeviceCreateBindGroupLayout(device, &bindGroupLayoutDescriptor);
-    var pipelineLayoutDescriptor = new WGPUPipelineLayoutDescriptor() {
-      bindGroupLayoutCount = 1,
-      bindGroupLayouts = &bindgroup_layout,
-    };
-    var pipeline_layout = wgpuDeviceCreatePipelineLayout(device, &pipelineLayoutDescriptor);
+
+    // Use pipeline builder for layout and pipeline creation
+    var bindgroup_layout = WebGpuPipelineBuilder.CreateBindGroupLayout(device);
+    var pipeline_layout = WebGpuPipelineBuilder.CreatePipelineLayout(device, bindgroup_layout);
+
     var blendState = new WGPUBlendState() {
       color = new WGPUBlendComponent() {
         operation = WGPUBlendOperation.Add,
@@ -172,35 +154,14 @@ public partial class Home
       writeMask = WGPUColorWriteMask.All,
       blend = &blendState,
     };
-    var fragmentState = new WGPUFragmentState() {
-      module = shader_triangle,
-      entryPoint = "fs_main".ToPointer(),
-      targetCount = 1,
-      targets = &targetState,
-    };
-    var renderPipelineDescriptor = new WGPURenderPipelineDescriptor() {
-      layout = pipeline_layout,
-      vertex = new WGPUVertexState() {
-        module = shader_triangle,
-        entryPoint = "vs_main".ToPointer(),
-        bufferCount = 1,
-        buffers = &vertex_buffer_layout,
-      },
-      primitive = new WGPUPrimitiveState() {
-        frontFace = WGPUFrontFace.CCW,
-        cullMode = WGPUCullMode.None,
-        topology = WGPUPrimitiveTopology.TriangleList,
-        stripIndexFormat = WGPUIndexFormat.Undefined,
-      },
-      fragment = &fragmentState,
-      multisample = new WGPUMultisampleState() {
-        count = 1,
-        mask = 0xFFFFFFFF,
-        alphaToCoverageEnabled = false,
-      },
-      depthStencil = null,
-    };
-    pipeline = wgpuDeviceCreateRenderPipeline(device, &renderPipelineDescriptor);
+
+    pipeline = WebGpuPipelineBuilder.CreateRenderPipeline(
+      device,
+      pipeline_layout,
+      shader_triangle,
+      &vertex_buffer_layout,
+      &targetState);
+
     wgpuPipelineLayoutRelease(pipeline_layout);
     wgpuShaderModuleRelease(shader_triangle);
 
@@ -218,7 +179,6 @@ public partial class Home
     };
     vbuffer = create_buffer(vertex_data, 4 * 2 * sizeof(float), WGPUBufferUsage.Vertex, device, queue);
     ibuffer = create_buffer(index_data, 6 * sizeof(ushort), WGPUBufferUsage.Index, device, queue);
-    // Uniform buffer creation (zeroed data)
     byte* ubData = stackalloc byte[24];
     ubuffer = create_buffer(ubData, 24u, WGPUBufferUsage.Uniform, device, queue);
     viewState = new WebGpuViewState(width, height, ubuffer, queue);
