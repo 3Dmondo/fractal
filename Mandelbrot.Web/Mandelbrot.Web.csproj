@@ -20,4 +20,12 @@
     <EmbeddedResource Include="Shaders\*.wgsl" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Remove="wwwroot\favicon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="wwwroot\favicon.png" />
+  </ItemGroup>
+
 </Project>

@@ -3,9 +3,7 @@
 <PageTitle>Mandelbrot</PageTitle>
 
 <!-- Help Button -->
-<button class="help-btn" @onclick="ShowHelpOverlay">
-    🤔
-</button>
+<button class="help-btn" @onclick="ShowHelpOverlay">🤔</button>
 
 @if (showHelpOverlay)
 {
@@ -14,7 +12,8 @@
             <button class="close-btn" @onclick="HideHelpOverlay">&#10005;</button>
             <h2>Mandelbrot Web Demo</h2>
             <p>
-                This page renders the Mandelbrot set using WebGPU in your browser.<br />
+                This page renders the <a href="https://en.wikipedia.org/wiki/Mandelbrot_set" target="_blank" rel="noopener noreferrer">Mandelbrot set</a> 
+                using WebGPU in your browser.<br />
                 <ul>
                     <li>Pan: Drag with mouse or touch</li>
                     <li>Zoom: Mouse wheel or pinch gesture</li>
@@ -53,14 +52,17 @@
         width: 48px;
         height: 48px;
         border-radius: 50%;
-        background: rgba(0,0,0,0.0);
+        background: rgba(0.3,0.3,0.3,0.1);
         color: #fff;
         font-size: 2em;
         border: none;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        box-shadow: 0 2px 8px rgba(0.7,0.7,0.7,0.3);
         cursor: pointer;
         z-index: 1001;
         transition: background 0.2s;
+        display: flex;
+        align-items: center; 
+        justify-content: center;
     }
 
         .help-btn:hover {
