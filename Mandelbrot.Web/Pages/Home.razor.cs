@@ -56,9 +56,9 @@ namespace Mandelbrot.Web.Pages
       };
       var swapChain = wgpuDeviceCreateSwapChain(device, surface, &swapChainDescriptor);
 
-      // Single-precision WGSL Mandelbrot shader (vertex + fragment)
+      // Single-precision WGSL Mandelbrot shader (vertex + fragment) with uniform view params
       var triangleWGSL = @"
-// Mandelbrot WGSL (single-precision)
+// Mandelbrot WGSL (single-precision) with uniform view params
 
 struct VertexIn {
     @location(0) aPos : vec2<f32>,
@@ -69,6 +69,15 @@ struct VertexOut {
     @builtin(position) Position : vec4<f32>,
 };
 
+struct ViewParams {
+    center : vec2<f32>,
+    view : vec2<f32>,
+    maxIter : i32,
+    pad : i32, // padding to make size multiple of 16 bytes
+};
+
+@group(0) @binding(0) var<uniform> uView : ViewParams;
+
 @vertex
 fn vs_main(input : VertexIn) -> VertexOut {
     var output : VertexOut;
@@ -78,16 +87,14 @@ fn vs_main(input : VertexIn) -> VertexOut {
     return output;
 }
 
-const MAX_ITER : i32 = 400;
-
-fn mandelbrot(c_re: f32, c_im: f32) -> i32 {
+fn mandelbrot(c_re: f32, c_im: f32, maxIter: i32) -> i32 {
     var z_re: f32 = c_re;
     var z_im: f32 = c_im;
     var iter: i32 = 0;
     var re2: f32 = z_re * z_re;
     var im2: f32 = z_im * z_im;
     loop {
-        if (iter >= MAX_ITER) { break; }
+        if (iter >= maxIter) { break; }
         let tmp = z_re;
         z_re = re2 - im2 + c_re;
         z_im = (tmp + tmp) * z_im + c_im;
@@ -101,19 +108,20 @@ fn mandelbrot(c_re: f32, c_im: f32) -> i32 {
 
 @fragment
 fn fs_main(@location(0) vPos : vec2<f32>) -> @location(0) vec4<f32> {
-    // Map clip-space [-1,1] to complex plane using fixed view for step 1
-    let center: vec2<f32> = vec2<f32>(-0.5, 0.0);
-    let view: vec2<f32> = vec2<f32>(1.5, 1.0);
+    // Map clip-space [-1,1] to complex plane using uniform view parameters
+    let center = uView.center;
+    let view = uView.view;
+    let maxIter = uView.maxIter;
 
     let cr = vPos.x / view.x - center.x;
     let ci = vPos.y / view.y - center.y;
 
-    let iter = mandelbrot(cr, ci);
-    if (iter == MAX_ITER) {
+    let iter = mandelbrot(cr, ci, maxIter);
+    if (iter == maxIter) {
         return vec4<f32>(0.0, 0.0, 0.0, 1.0);
     }
 
-    let level = f32(iter) / f32(MAX_ITER);
+    let level = f32(iter) / f32(maxIter);
     var value = -log(max(level, 1e-9)) * 10.0;
     var x = value - floor(value);
     // compute value mod 6.0 without using mod()
@@ -166,7 +174,7 @@ fn fs_main(@location(0) vPos : vec2<f32>) -> @location(0) vec4<f32> {
                 new WGPUBindGroupLayoutEntry()
                 {
                     binding = 0,
-                    visibility = WGPUShaderStage.Vertex,
+                    visibility = (WGPUShaderStage)(WGPUShaderStage.Vertex | WGPUShaderStage.Fragment),
                     // buffer binding layout
                     buffer = new WGPUBufferBindingLayout()
                     {
@@ -259,14 +267,34 @@ fn fs_main(@location(0) vPos : vec2<f32>) -> @location(0) vec4<f32> {
       var vbuffer = create_buffer(vertex_data, 5 * 4 * sizeof(float), WGPUBufferUsage.Vertex, device, queue);
       var ibuffer = create_buffer(index_data, 3 * 2 * sizeof(ushort), WGPUBufferUsage.Index, device, queue);
       // create the uniform bind group
-      float rot = 45;
-      var ubuffer = create_buffer(&rot, sizeof(float), WGPUBufferUsage.Uniform, device, queue);
+      // Prepare ViewParams: center.x, center.y, view.x, view.y, maxIter (int)
+      float centerX = -0.5f;
+      float centerY = 0.0f;
+      float viewX = 1.5f;
+      float viewY = 1.0f;
+      int maxIter = 400;
+
+      // Allocate 24 bytes to match WGSL struct: vec2 + vec2 = 16 bytes, plus i32 + padding = 8 bytes => 24 bytes total
+      byte* ubData = stackalloc byte[24];
+      float* fptr = (float*)ubData;
+      fptr[0] = centerX;
+      fptr[1] = centerY;
+      fptr[2] = viewX;
+      fptr[3] = viewY;
+      // place the ints at offset 16
+      int* iptr = (int*)(ubData + 16);
+      iptr[0] = maxIter;
+      iptr[1] = 0; // padding
+
+      var ubuffer = create_buffer(ubData, 24u, WGPUBufferUsage.Uniform, device, queue);
+
       var bindGroupEntry = new WGPUBindGroupEntry() {
         binding = 0,
         offset = 0,
         buffer = ubuffer,
-        size = sizeof(float),
+        size = 24u,
       };
+
       var bindGroupDescriptor = new WGPUBindGroupDescriptor() {
         // We reuse the layout created earlier because wgpuRenderPipelineGetBindGroupLayout(pipeline, 0) does not work
         layout = bindgroup_layout,
