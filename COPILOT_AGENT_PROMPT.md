@@ -86,18 +86,19 @@ Before Step 3 — ensure initial rendering matches canvas size and aspect ratio
 Test (manual):
 - Rebuild and run. The Mandelbrot rendering should not appear stretched; panning and zoom math later will match the desktop `Window.cs` conventions.
 
-Step 3 — Implement panning (mouse/touch drag) and zoom (wheel/pinch)
+Step 3 — Implement panning (mouse/touch drag), zoom (wheel/pinch), and window resize
 - Preferred approach: use Blazor pointer events on the canvas in `Home.razor`:
   - Add `@onpointerdown`, `@onpointermove`, `@onpointerup`, and `@onwheel` handlers.
   - In `Home.razor.cs` add corresponding `OnPointerDown`, `OnPointerMove`, `OnPointerUp`, `OnWheel` methods that update `center`/`scale` values.
   - For mobile pinch: implement pointer capture for multiple pointers and calculate distance delta for pinch, or if simpler, add a small JS helper to detect pinch and call .NET method via `DotNet.invokeMethodAsync`.
-- After updating `center`/`scale`, write the updated `ViewParams` to the uniform buffer with `wgpuQueueWriteBuffer` and call the existing `draw` (or re-run `Run`'s draw path) to present the updated image.
+  - **Handle window/canvas resize:** update view parameters and redraw Mandelbrot when the canvas size changes, matching desktop behavior.
+- After updating `center`/`scale`/`view`, write the updated `ViewParams` to the uniform buffer with `wgpuQueueWriteBuffer` and call the existing `draw` (or re-run `Run`'s draw path) to present the updated image.
 
 Minimal changes:
 - Add event handlers and uniform buffer update code only.
 
 Test 3 (manual):
-- On desktop: click-and-drag the canvas to pan; use the mouse wheel to zoom centered at pointer position. Verify the image updates responsively.
+- On desktop: click-and-drag the canvas to pan; use the mouse wheel to zoom centered at pointer position. Resize the window and confirm Mandelbrot view updates responsively.
 - On mobile: test touch drag to pan and pinch-to-zoom (if implemented). If pinch handled in JS, verify events reach C# and update view.
 
 Step 4 — Improve interaction UX
