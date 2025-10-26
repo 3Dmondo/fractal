@@ -71,7 +71,7 @@ Minimal changes:
 Test 2 (manual):
 - Rebuild and run. Confirm the Mandelbrot renders with the initial center/scale values.
 
-Before Step 3 — ensure initial rendering matches canvas size and aspect ratio
+Before Step 3 —ensure initial rendering matches canvas size and aspect ratio
 - To match desktop `Mandelbrot/Window.cs` behavior, compute the uniform `view` from the canvas aspect ratio and initial `scale`:
   - Aspect = height / width
   - view = (aspect, 1) / scale
@@ -132,8 +132,8 @@ Test 5 (manual):
 Step 6 — Refactor and follow SOLID (Single Responsibility Principle) and improve maintainability
 
 - Move WGSL shader source strings to resource files (e.g., .wgsl or .txt).
-- Load shader code at runtime using Blazor resource loading or embedded resources.
-- Create a `WebGpuShaderLoader` class for shader loading.
+- **Embed shader files as resources in the project and load them using a ResourceReader class (DONE).**
+- Create a `WebGpuShaderLoader` class for shader loading (optional, if further abstraction needed).
 - Optionally, create a `WebGpuPipelineBuilder` class for pipeline/bind group setup.
 - Keep `Home` focused on UI/event logic; delegate rendering and GPU setup to helpers.
 - Use clear, descriptive names and add documentation comments.

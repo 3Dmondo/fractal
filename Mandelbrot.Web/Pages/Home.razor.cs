@@ -3,9 +3,15 @@ using static Evergine.Bindings.WebGPU.WebGPUNative;
 using Microsoft.JSInterop;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Mandelbrot.Web;
+using System.Collections.Generic;
 
 namespace Mandelbrot.Web.Pages;
 
+/// <summary>
+/// Blazor page/component for Mandelbrot WebGPU rendering and interaction.
+/// Handles UI events and delegates rendering logic to helper classes.
+/// </summary>
 public partial class Home
 {
   [Inject]
@@ -32,6 +38,9 @@ public partial class Home
 
   public Home() { _instance = this; }
 
+  /// <summary>
+  /// Called after the component is rendered. Initializes WebGPU and pinch handler.
+  /// </summary>
   protected override async Task OnAfterRenderAsync(bool firstRender)
   {
     if (firstRender) {
@@ -75,6 +84,9 @@ public partial class Home
     return Task.CompletedTask;
   }
 
+  /// <summary>
+  /// Initializes WebGPU pipeline and resources, loads shaders, and draws Mandelbrot.
+  /// </summary>
   public unsafe void Run()
   {
     device = emscripten_webgpu_get_device();
