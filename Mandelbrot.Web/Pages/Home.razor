@@ -2,7 +2,12 @@
 
 <PageTitle>Mandelbrot</PageTitle>
 
-<canvas id="canvas" class="sim-canvas"></canvas>
+<canvas id="canvas" class="sim-canvas"
+        @onpointerdown="OnPointerDown"
+        @onpointermove="OnPointerMove"
+        @onpointerup="OnPointerUp"
+        @onwheel="OnWheel">
+</canvas>
 
 <style>
     html, body { margin:0; padding:0; height:100%; }
