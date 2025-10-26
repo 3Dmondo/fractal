@@ -6,14 +6,14 @@ Constraints & decisions (updated)
 
 - Use the existing `Evergine.Bindings.WebGPU` library already referenced by the project. There is no need to implement low-level WebGL or Emscripten bindings.
 - Reuse the desktop `Mandelbrot\Window.cs` and shader sources under `Mandelbrot\Shaders` as the algorithmic reference and to derive the WGSL implementation.
-- Follow the HelloTriangleWasm page wiring pattern (`HelloTriangleWasm\Pages\Home.razor(.cs)`) for bootstrapping and calling into C# from JS. Keep the runtime interactions minimal: JS forwards pointer/wheel/resize events to C# static invokable methods and C# performs the rendering when state changes.
+- Follow the Mandelbrot.Web page wiring pattern (`Mandelbrot.Web\Pages\Home.razor(.cs)`) for bootstrapping and calling into C# from JS. Keep the runtime interactions minimal: JS forwards pointer/wheel/resize events to C# static invokable methods and C# performs the rendering when state changes.
 - `Mandelbrot.Web\Helpers.cs` is available and can be used to convert managed strings into native pointers when creating WGSL shader modules via Evergine helper patterns.
 - Rendering happens only when the scene changes (resize, pan, zoom). No animation loop is required.
 
 High-level approach (preferred, using Evergine.Bindings.WebGPU)
 
 1. Use Evergine.Bindings.WebGPU as the native binding surface
-   - Reuse the same pattern used in `HelloTriangleWasm\Pages\Home.razor.cs` (the `Run()` example) as a direct template: call `emscripten_webgpu_get_device()`, create swapchain from an HTML canvas selector, create shader modules, pipeline, buffers, bind groups, and issue draw calls from C#.
+   - Reuse the same pattern used in `Mandelbrot.Web\Pages\Home.razor.cs` (the `Run()` example) as a direct template: call `emscripten_webgpu_get_device()`, create swapchain from an HTML canvas selector, create shader modules, pipeline, buffers, bind groups, and issue draw calls from C#.
    - Keep code simple and local: a `MandelbrotRenderer` class will own device resources and expose simple methods to initialize, update uniforms, resize the swap chain, and draw.
 
 2. Port shaders to WGSL
@@ -23,7 +23,7 @@ High-level approach (preferred, using Evergine.Bindings.WebGPU)
 3. Implement `MandelbrotRenderer` in C# (simple, Evergine/WebGPU style)
    - Add `Mandelbrot.Web/Rendering/MandelbrotRenderer.cs`.
    - Responsibilities:
-     - `Initialize(string canvasSelector)` — create surface/swapchain from the canvas selector using the exact Evergine/emscripten pattern shown in `HelloTriangleWasm`.
+     - `Initialize(string canvasSelector)` — create surface/swapchain from the canvas selector using the exact Evergine/emscripten pattern shown in `Mandelbrot.Web`.
      - Create WGSL shader modules from string literals (use `Helpers.ToPointer` if needed), create pipeline layout, render pipeline, vertex state (fullscreen), and uniform buffer(s).
      - `Resize(double cssWidth, double cssHeight)` — recreate swapchain or update internal width/height and viewport uniforms.
      - `UpdateView(Vector2d center, double scale, int maxIterations)` — write uniforms into the uniform buffer (map or use queue write helper) and mark state if needed.
@@ -31,7 +31,7 @@ High-level approach (preferred, using Evergine.Bindings.WebGPU)
    - Keep the implementation minimal and model it after the `Run()` routine from the HelloTriangle example: the same Evergine functions can be used to create shader modules, pipelines, buffers and record/submit commands.
 
 4. Page wiring in Blazor
-   - Update `Mandelbrot.Web/Pages/Home.razor` and `Home.razor.cs` following the `HelloTriangleWasm` template:
+   - Update `Mandelbrot.Web/Pages/Home.razor` and `Home.razor.cs` following the `Mandelbrot.Web` template:
      - Add `<canvas id="mandelbrot-canvas"></canvas>` and include a small `wwwroot/mandelbrot.js` script.
      - In `Home.razor.cs` maintain view state (`Center : Vector2d`, `Scale : double`, `AspectRatio` derived), an instance of `MandelbrotRenderer`, and a dirty flag.
      - Implement `[JSInvokable]` static methods: `Tick()` (call Draw when dirty), `OnResize()` (query canvas CSS size and call renderer.Resize), `OnWheel(float deltaY, float clientX, float clientY)`, `OnPointerDown(float x, float y)`, `OnPointerMove(float x, float y)`, `OnPointerUp()` — use the same mouse-to-world mapping math from `Mandelbrot\Window.cs` to compute `Center` and update `Scale`.
@@ -54,7 +54,7 @@ High-level approach (preferred, using Evergine.Bindings.WebGPU)
 Concrete files to add / update (minimal)
 
 - New: `Mandelbrot.Web/Rendering/MandelbrotRenderer.cs`
-  - Implement Evergine/WebGPU resource creation, uniform updates and `Draw()` using the `HelloTriangleWasm` example as a template. Keep code concise and focused on the Mandelbrot uniform inputs and a fullscreen render.
+  - Implement Evergine/WebGPU resource creation, uniform updates and `Draw()` using the `Mandelbrot.Web` example as a template. Keep code concise and focused on the Mandelbrot uniform inputs and a fullscreen render.
 
 - Update: `Mandelbrot.Web/Pages/Home.razor` and `Home.razor.cs`
   - Add canvas with id `mandelbrot-canvas` and include `mandelbrot.js`.
@@ -68,7 +68,7 @@ Concrete files to add / update (minimal)
 Step-by-step implementation plan
 
 1. Port the fragment logic from `Mandelbrot\Shaders\shader.frag` into WGSL (floats). Create a minimal WGSL vertex shader (fullscreen triangle) and test by compiling into a shader module in `MandelbrotRenderer`.
-2. Implement `MandelbrotRenderer.Initialize(canvasSelector)` using the `HelloTriangleWasm` `Run()` code as reference. Create pipeline, uniform buffer and any needed bind group layout. Use `Helpers.ToPointer` for string->pointer when creating shader modules via the Evergine helper pattern.
+2. Implement `MandelbrotRenderer.Initialize(canvasSelector)` using the `Mandelbrot.Web` `Run()` code as reference. Create pipeline, uniform buffer and any needed bind group layout. Use `Helpers.ToPointer` for string->pointer when creating shader modules via the Evergine helper pattern.
 3. Implement `UpdateView(center, scale)` to write uniforms to the uniform buffer (use `wgpuQueueWriteBuffer` or equivalent existing helper patterns). Implement `Resize` to recreate swapchain or update cached dimensions.
 4. Wire up `Home.razor(.cs)` to instantiate the renderer, maintain view state and call `Draw()` when dirty. Implement the JSInvokable handlers for input and use the same coordinate math as `Mandelbrot\Window.cs`.
 5. Add `wwwroot/mandelbrot.js` to forward events and call `OnResize` on load.
@@ -76,7 +76,7 @@ Step-by-step implementation plan
 
 Notes & trade-offs
 
-- Using the Evergine WebGPU bindings closely follows the existing HelloTriangleWasm example and keeps rendering logic in C# while avoiding manual native bindings.
+- Using the Evergine WebGPU bindings closely follows the existing Mandelbrot.Web example and keeps rendering logic in C# while avoiding manual native bindings.
 - WGSL and single-precision floats mean extreme zooms will differ from desktop double-precision rendering; document this limitation.
 - Keep the renderer intentionally simple: fullscreen render with uniforms, render on change only.
 
@@ -84,11 +84,11 @@ Acceptance criteria
 
 - The `Mandelbrot.Web` page renders the Mandelbrot set inside `<canvas id="mandelbrot-canvas">`.
 - Pan, zoom (mouse wheel), and resize are implemented and update the view correctly; rendering occurs only when parameters change.
-- Implementation reuses Evergine.Bindings.WebGPU patterns from `HelloTriangleWasm` and desktop mapping from `Mandelbrot\Window.cs`.
+- Implementation reuses Evergine.Bindings.WebGPU patterns from `Mandelbrot.Web` and desktop mapping from `Mandelbrot\Window.cs`.
 
 Next immediate actions
 
-1. I will update `Mandelbrot.Web/Pages/Home.razor(.cs)` to follow `HelloTriangleWasm` template and add canvas and script include.
+1. I will update `Mandelbrot.Web/Pages/Home.razor(.cs)` to follow `Mandelbrot.Web` template and add canvas and script include.
 2. Add `MandelbrotRenderer.cs` in `Mandelbrot.Web/Rendering/` that uses Evergine.Bindings.WebGPU APIs to create shader modules, pipeline and draw.
 3. Add `wwwroot/mandelbrot.js` to forward pointer/wheel/resize events to Blazor static methods.
 4. Port the fragment shader to WGSL and include it either as an embedded string or as a `wwwroot` asset compiled at runtime.

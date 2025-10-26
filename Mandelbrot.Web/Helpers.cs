@@ -1,9 +1,10 @@
-namespace Mandelbrot.Web;
-
-public unsafe static class Helpers
+namespace Mandelbrot.Web
 {
-  public static char* ToPointer(this string text)
+  public unsafe static class Helpers
   {
-    return (char*)System.Runtime.InteropServices.Marshal.StringToHGlobalAnsi(text);
+    public static char* ToPointer(this string text)
+    {
+      return (char*)System.Runtime.InteropServices.Marshal.StringToHGlobalAnsi(text);
+    }
   }
 }
