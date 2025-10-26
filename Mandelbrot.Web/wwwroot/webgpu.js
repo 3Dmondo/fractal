@@ -30,13 +30,62 @@
     }
   };
 
+  // Pinch-to-zoom handler for mobile/touch
+  function setupPinchHandler() {
+    const canvas = document.getElementById('canvas') || document.querySelector('canvas');
+    let lastDist = null;
+    let lastCenter = null;
+    function getTouchInfo(evt) {
+      if (evt.touches.length !== 2) return null;
+      const t1 = evt.touches[0], t2 = evt.touches[1];
+      const dx = t1.clientX - t2.clientX;
+      const dy = t1.clientY - t2.clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const centerX = (t1.clientX + t2.clientX) / 2;
+      const centerY = (t1.clientY + t2.clientY) / 2;
+      return { dist, centerX, centerY };
+    }
+    canvas.addEventListener('touchstart', function (evt) {
+      if (evt.touches.length === 2) {
+        const info = getTouchInfo(evt);
+        lastDist = info.dist;
+        lastCenter = { x: info.centerX, y: info.centerY };
+      }
+    }, { passive: false });
+    canvas.addEventListener('touchmove', function (evt) {
+      if (evt.touches.length === 2) {
+        evt.preventDefault();
+        const info = getTouchInfo(evt);
+        if (lastDist != null) {
+          const scaleDelta = info.dist / lastDist;
+          window.DotNet && window.DotNet.invokeMethodAsync && window.DotNet.invokeMethodAsync(
+            'Mandelbrot.Web', 'OnPinch', info.centerX, info.centerY, scaleDelta
+          );
+        }
+        lastDist = info.dist;
+        lastCenter = { x: info.centerX, y: info.centerY };
+      }
+    }, { passive: false });
+    canvas.addEventListener('touchend', function (evt) {
+      if (evt.touches.length < 2) {
+        lastDist = null;
+        lastCenter = null;
+      }
+    });
+  }
+
   // expose function globally so Blazor can call it
   window.initWebGPU = initWebGPU;
+  window.setupPinchHandler = setupPinchHandler;
 
   if (document.readyState === 'loading') {
-    window.addEventListener('DOMContentLoaded', initWebGPU);
+    window.addEventListener('DOMContentLoaded', function() {
+      initWebGPU();
+      setupPinchHandler();
+    });
   } else {
     // DOM already ready
     initWebGPU();
+    setupPinchHandler();
   }
 })();

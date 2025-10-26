@@ -45,6 +45,7 @@ public partial class Home
       try {
         // Ensure the JS shim initializes WebGPU and sets Module.preinitializedWebGPUDevice
         await JS.InvokeVoidAsync("initWebGPU");
+        await JS.InvokeVoidAsync("setupPinchHandler");
       } catch {
         // ignore — initWebGPU may not exist or may fail; Run() will still try to use any available device
       }
@@ -52,7 +53,7 @@ public partial class Home
       // Automatically start the WebGPU demo once initialization is attempted
       Run();
       // Listen for window resize
-      await JS.InvokeVoidAsync("eval", "window.addEventListener('resize', () => DotNet.invokeMethodAsync('Mandelbrot.Web', 'OnCanvasResize'));");
+      await JS.InvokeVoidAsync("eval", "window.addEventListener('resize', () => DotNet.invokeMethodAsync('Mandelbrot.Web', 'OnCanvasResize')); ");
     }
   }
 
@@ -60,6 +61,34 @@ public partial class Home
   public static void OnCanvasResize()
   {
     _instance?.Run();
+  }
+
+  [JSInvokable]
+  public static Task OnPinch(float pinchCenterX, float pinchCenterY, float scaleDelta)
+  {
+    if (_instance == null) return Task.CompletedTask;
+    // Clamp scale
+    var newScale = _instance.scale * scaleDelta;
+    if (newScale < 0.0001f || newScale > 2.0f) return Task.CompletedTask;
+    // Compute world mouse position before zoom
+    float aspect = (float)_instance.canvasHeight / (float)_instance.canvasWidth;
+    float viewX = aspect / _instance.scale;
+    float viewY = 1.0f / _instance.scale;
+    float normX = pinchCenterX / (float)_instance.canvasWidth * 2.0f - 1.0f;
+    float normY = pinchCenterY / (float)_instance.canvasHeight * 2.0f - 1.0f;
+    normX *= -1.0f;
+    float worldMouseX = _instance.centerX + normX / viewX;
+    float worldMouseY = _instance.centerY + normY / viewY;
+    _instance.scale = newScale;
+    float newViewX = aspect / _instance.scale;
+    float newViewY = 1.0f / _instance.scale;
+    float newWorldMouseX = _instance.centerX + normX / newViewX;
+    float newWorldMouseY = _instance.centerY + normY / newViewY;
+    _instance.centerX += (worldMouseX - newWorldMouseX);
+    _instance.centerY += (worldMouseY - newWorldMouseY);
+    _instance.UpdateUniformBuffer();
+    _instance.Redraw();
+    return Task.CompletedTask;
   }
 
   public unsafe void Run()
@@ -442,23 +471,6 @@ fn fs_main(@location(0) vPos : vec2<f32>) -> @location(0) vec4<f32> {
       centerY -= dy / (float)canvasHeight / viewY * 2.0f;
       UpdateUniformBuffer();
       Redraw();
-    }
-    else if (pointers.Count == 2) {
-      // Pinch-to-zoom
-      var pts = new List<(float x, float y)>(pointers.Values);
-      float dx = pts[0].x - pts[1].x;
-      float dy = pts[0].y - pts[1].y;
-      float dist = MathF.Sqrt(dx * dx + dy * dy);
-      if (lastPinchDistance != null) {
-        float pinchDelta = dist - lastPinchDistance.Value;
-        float pinchScale = 1.0f + pinchDelta / 200.0f; // scale factor
-        float newScale = scale * pinchScale;
-        if (newScale < 0.0001f || newScale > 2.0f) return;
-        scale = newScale;
-        UpdateUniformBuffer();
-        Redraw();
-      }
-      lastPinchDistance = dist;
     }
   }
 
