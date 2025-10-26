@@ -1,10 +1,34 @@
 using Evergine.Bindings.WebGPU;
 using static Evergine.Bindings.WebGPU.WebGPUNative;
+using Microsoft.JSInterop;
+using Microsoft.AspNetCore.Components;
 
 namespace Mandelbrot.Web.Pages
 {
   public partial class Home
   {
+    [Inject]
+    private IJSRuntime JS { get; set; } = default!;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+      if (firstRender)
+      {
+        try
+        {
+          // Ensure the JS shim initializes WebGPU and sets Module.preinitializedWebGPUDevice
+          await JS.InvokeVoidAsync("initWebGPU");
+        }
+        catch
+        {
+          // ignore — initWebGPU may not exist or may fail; Run() will still try to use any available device
+        }
+
+        // Automatically start the WebGPU demo once initialization is attempted
+        Run();
+      }
+    }
+
     public unsafe void Run()
     {
       // Based on: https://github.com/seyhajin/webgpu-wasm-c/blob/f8d718cf44d9ab3f19319efb27c87c645c46fc15/main.c

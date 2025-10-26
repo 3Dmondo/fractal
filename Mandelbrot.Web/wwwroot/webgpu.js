@@ -26,8 +26,12 @@
       if (typeof Module !== 'undefined') Module.preinitializedWebGPUDevice = device;
     } catch (e) {
       console.error('initWebGPU error', e);
+      throw e;
     }
   };
+
+  // expose function globally so Blazor can call it
+  window.initWebGPU = initWebGPU;
 
   if (document.readyState === 'loading') {
     window.addEventListener('DOMContentLoaded', initWebGPU);
