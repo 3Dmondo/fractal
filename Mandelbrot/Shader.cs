@@ -3,7 +3,6 @@
 
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
-using System.Reflection.Metadata;
 
 namespace Mandelbrot
 {

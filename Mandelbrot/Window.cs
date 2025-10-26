@@ -3,7 +3,6 @@ using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
-using System.Drawing;
 
 namespace Mandelbrot
 {
@@ -16,7 +15,7 @@ namespace Mandelbrot
     private double Scale = 1;
     private Shader Shader;
 
-    private float AspectRatio => (float)Size.Y / Size.X;
+    private new float AspectRatio => (float)Size.Y / Size.X;
     private Vector2d View => new Vector2d(AspectRatio, 1.0) / Scale;
     private static Vector2 InvertMouseX = new Vector2(-1.0f, 1.0f);
     private static Vector2 One = new Vector2(1.0f, 1.0f);

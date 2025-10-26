@@ -33,8 +33,8 @@
   // Pinch-to-zoom handler for mobile/touch
   function setupPinchHandler() {
     const canvas = document.getElementById('canvas') || document.querySelector('canvas');
+    if (!canvas) return; // Only set up if canvas exists
     let lastDist = null;
-    let lastCenter = null;
     function getTouchInfo(evt) {
       if (evt.touches.length !== 2) return null;
       const t1 = evt.touches[0], t2 = evt.touches[1];
@@ -49,27 +49,24 @@
       if (evt.touches.length === 2) {
         const info = getTouchInfo(evt);
         lastDist = info.dist;
-        lastCenter = { x: info.centerX, y: info.centerY };
       }
     }, { passive: false });
     canvas.addEventListener('touchmove', function (evt) {
       if (evt.touches.length === 2) {
         evt.preventDefault();
         const info = getTouchInfo(evt);
-        if (lastDist != null) {
+        if (lastDist != null && info) {
           const scaleDelta = info.dist / lastDist;
           window.DotNet && window.DotNet.invokeMethodAsync && window.DotNet.invokeMethodAsync(
             'Mandelbrot.Web', 'OnPinch', info.centerX, info.centerY, scaleDelta
           );
         }
         lastDist = info.dist;
-        lastCenter = { x: info.centerX, y: info.centerY };
       }
     }, { passive: false });
     canvas.addEventListener('touchend', function (evt) {
       if (evt.touches.length < 2) {
         lastDist = null;
-        lastCenter = null;
       }
     });
   }
@@ -78,14 +75,15 @@
   window.initWebGPU = initWebGPU;
   window.setupPinchHandler = setupPinchHandler;
 
+  // Remove automatic setupPinchHandler call
   if (document.readyState === 'loading') {
     window.addEventListener('DOMContentLoaded', function() {
       initWebGPU();
-      setupPinchHandler();
+      // setupPinchHandler(); // Removed
     });
   } else {
     // DOM already ready
     initWebGPU();
-    setupPinchHandler();
+    // setupPinchHandler(); // Removed
   }
 })();

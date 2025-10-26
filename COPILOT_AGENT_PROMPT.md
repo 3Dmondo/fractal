@@ -129,11 +129,17 @@ Test 5 (manual):
 - Resize the browser window and confirm Mandelbrot view updates responsively.
 - On mobile: drag to pan, pinch to zoom. Confirm interaction matches desktop.
 
-Step 6 — Refactor and follow SOLID
-- Extract shader strings into small helpers or separate resource files (still kept minimal).
-- Encapsulate view state and uniform buffer logic into a small `WebGpuViewState` class (single responsibility) with methods: `UpdateCenter`, `UpdateScale`, `WriteToBuffer`.
-- Ensure the `Home` component delegates rendering and state update responsibilities to these classes.
-- Keep the public surface of the component minimal for testability.
+Step 6 — Refactor and follow SOLID (Single Responsibility Principle) and improve maintainability
+
+- Move WGSL shader source strings to resource files (e.g., .wgsl or .txt).
+- Load shader code at runtime using Blazor resource loading or embedded resources.
+- Create a `WebGpuShaderLoader` class for shader loading.
+- Optionally, create a `WebGpuPipelineBuilder` class for pipeline/bind group setup.
+- Keep `Home` focused on UI/event logic; delegate rendering and GPU setup to helpers.
+- Use clear, descriptive names and add documentation comments.
+- Group related logic into small, testable methods.
+- Make view state and rendering logic unit-testable.
+- Ensure proper disposal of GPU resources.
 
 Test 6 (manual):
 - Run and smoke-test all interactions again. Ensure code is readable and unit-testable where possible.

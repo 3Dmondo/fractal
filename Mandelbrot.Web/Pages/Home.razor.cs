@@ -3,7 +3,6 @@ using static Evergine.Bindings.WebGPU.WebGPUNative;
 using Microsoft.JSInterop;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
-using System.Collections.Generic;
 
 namespace Mandelbrot.Web.Pages;
 
@@ -12,20 +11,12 @@ public partial class Home
   [Inject]
   private IJSRuntime JS { get; set; } = default!;
 
-  // Static instance for JSInvokable resize
   private static Home? _instance;
 
   // Interaction state
-  private float centerX = 0.5f;
-  private float centerY = 0.0f;
-  private float scale = 1.0f;
   private bool isPointerDown = false;
   private float lastPointerX, lastPointerY;
-  private double canvasWidth, canvasHeight;
-
-  // Touch/pinch state
   private Dictionary<int, (float x, float y)> pointers = new();
-  private float? lastPinchDistance = null;
 
   // WebGPU state
   private unsafe WGPUBuffer ubuffer;
@@ -37,22 +28,18 @@ public partial class Home
   private unsafe WGPUBuffer vbuffer;
   private unsafe WGPUBuffer ibuffer;
 
+  private WebGpuViewState? viewState;
+
   public Home() { _instance = this; }
 
   protected override async Task OnAfterRenderAsync(bool firstRender)
   {
     if (firstRender) {
       try {
-        // Ensure the JS shim initializes WebGPU and sets Module.preinitializedWebGPUDevice
         await JS.InvokeVoidAsync("initWebGPU");
         await JS.InvokeVoidAsync("setupPinchHandler");
-      } catch {
-        // ignore — initWebGPU may not exist or may fail; Run() will still try to use any available device
-      }
-
-      // Automatically start the WebGPU demo once initialization is attempted
+      } catch {}
       Run();
-      // Listen for window resize
       await JS.InvokeVoidAsync("eval", "window.addEventListener('resize', () => DotNet.invokeMethodAsync('Mandelbrot.Web', 'OnCanvasResize')); ");
     }
   }
@@ -66,27 +53,24 @@ public partial class Home
   [JSInvokable]
   public static Task OnPinch(float pinchCenterX, float pinchCenterY, float scaleDelta)
   {
-    if (_instance == null) return Task.CompletedTask;
-    // Clamp scale
-    var newScale = _instance.scale * scaleDelta;
+    if (_instance?.viewState == null) return Task.CompletedTask;
+    var newScale = _instance.viewState.Scale * scaleDelta;
     if (newScale < 0.0001f || newScale > 2.0f) return Task.CompletedTask;
-    // Compute world mouse position before zoom
-    float aspect = (float)_instance.canvasHeight / (float)_instance.canvasWidth;
-    float viewX = aspect / _instance.scale;
-    float viewY = 1.0f / _instance.scale;
-    float normX = pinchCenterX / (float)_instance.canvasWidth * 2.0f - 1.0f;
-    float normY = pinchCenterY / (float)_instance.canvasHeight * 2.0f - 1.0f;
+    float aspect = (float)_instance.viewState.CanvasHeight / (float)_instance.viewState.CanvasWidth;
+    float viewX = aspect / _instance.viewState.Scale;
+    float viewY = 1.0f / _instance.viewState.Scale;
+    float normX = pinchCenterX / (float)_instance.viewState.CanvasWidth * 2.0f - 1.0f;
+    float normY = pinchCenterY / (float)_instance.viewState.CanvasHeight * 2.0f - 1.0f;
     normX *= -1.0f;
-    float worldMouseX = _instance.centerX + normX / viewX;
-    float worldMouseY = _instance.centerY + normY / viewY;
-    _instance.scale = newScale;
-    float newViewX = aspect / _instance.scale;
-    float newViewY = 1.0f / _instance.scale;
-    float newWorldMouseX = _instance.centerX + normX / newViewX;
-    float newWorldMouseY = _instance.centerY + normY / newViewY;
-    _instance.centerX += (worldMouseX - newWorldMouseX);
-    _instance.centerY += (worldMouseY - newWorldMouseY);
-    _instance.UpdateUniformBuffer();
+    float worldMouseX = _instance.viewState.CenterX + normX / viewX;
+    float worldMouseY = _instance.viewState.CenterY + normY / viewY;
+    _instance.viewState.UpdateScale(newScale);
+    float newViewX = aspect / _instance.viewState.Scale;
+    float newViewY = 1.0f / _instance.viewState.Scale;
+    float newWorldMouseX = _instance.viewState.CenterX + normX / newViewX;
+    float newWorldMouseY = _instance.viewState.CenterY + normY / newViewY;
+    _instance.viewState.UpdateCenter(_instance.viewState.CenterX + (worldMouseX - newWorldMouseX), _instance.viewState.CenterY + (worldMouseY - newWorldMouseY));
+    _instance.viewState.WriteToBuffer();
     _instance.Redraw();
     return Task.CompletedTask;
   }
@@ -97,8 +81,6 @@ public partial class Home
     queue = wgpuDeviceGetQueue(device);
     double width, height;
     emscripten_get_element_css_size("canvas".ToPointer(), &width, &height);
-    canvasWidth = width;
-    canvasHeight = height;
     var surfaceDescriptorFromCanvasHTMLSelector = new WGPUSurfaceDescriptorFromCanvasHTMLSelector() {
       chain = new WGPUChainedStruct() {
         sType = WGPUSType.SurfaceDescriptorFromCanvasHTMLSelector,
@@ -112,13 +94,13 @@ public partial class Home
     var swapChainDescriptor = new WGPUSwapChainDescriptor() {
       usage = WGPUTextureUsage.RenderAttachment,
       format = WGPUTextureFormat.BGRA8Unorm,
-      width = (uint)canvasWidth,
-      height = (uint)canvasHeight,
+      width = (uint)width,
+      height = (uint)height,
       presentMode = WGPUPresentMode.Fifo,
     };
     swapChain = wgpuDeviceCreateSwapChain(device, surface, &swapChainDescriptor);
 
-    // Single-precision WGSL Mandelbrot shader (vertex + fragment) with uniform view params
+    // Shader and pipeline setup
     var triangleWGSL = @"
 // Mandelbrot WGSL (single-precision) with uniform view params
 
@@ -291,6 +273,7 @@ fn fs_main(@location(0) vPos : vec2<f32>) -> @location(0) vec4<f32> {
     pipeline = wgpuDeviceCreateRenderPipeline(device, &renderPipelineDescriptor);
     wgpuPipelineLayoutRelease(pipeline_layout);
     wgpuShaderModuleRelease(shader_triangle);
+
     var vertex_data = stackalloc float[]
     {
       -1.0f, -1.0f,
@@ -305,20 +288,15 @@ fn fs_main(@location(0) vPos : vec2<f32>) -> @location(0) vec4<f32> {
     };
     vbuffer = create_buffer(vertex_data, 4 * 2 * sizeof(float), WGPUBufferUsage.Vertex, device, queue);
     ibuffer = create_buffer(index_data, 6 * sizeof(ushort), WGPUBufferUsage.Index, device, queue);
-    // Prepare ViewParams
-    float viewX = (float)canvasHeight / (float)canvasWidth / scale;
-    float viewY = 1.0f / scale;
-    int maxIter = 400;
+    // Uniform buffer creation (zeroed data)
     byte* ubData = stackalloc byte[24];
-    float* fptr = (float*)ubData;
-    fptr[0] = centerX;
-    fptr[1] = centerY;
-    fptr[2] = viewX;
-    fptr[3] = viewY;
-    int* iptr = (int*)(ubData + 16);
-    iptr[0] = maxIter;
-    iptr[1] = 0;
     ubuffer = create_buffer(ubData, 24u, WGPUBufferUsage.Uniform, device, queue);
+    viewState = new WebGpuViewState(width, height, ubuffer, queue);
+    viewState.CenterX = 0.5f;
+    viewState.CenterY = 0.0f;
+    viewState.Scale = 1.0f;
+    viewState.MaxIter = 400;
+    viewState.WriteToBuffer();
     var bindGroupEntry = new WGPUBindGroupEntry() {
       binding = 0,
       offset = 0,
@@ -335,6 +313,67 @@ fn fs_main(@location(0) vPos : vec2<f32>) -> @location(0) vec4<f32> {
     draw(swapChain, device, queue, pipeline, bindgroup, vbuffer, ibuffer);
   }
 
+  // Pointer event handlers (mouse/touch/pan)
+  public void OnPointerDown(PointerEventArgs e)
+  {
+    isPointerDown = true;
+    lastPointerX = (float)e.ClientX;
+    lastPointerY = (float)e.ClientY;
+    pointers[(int)e.PointerId] = ((float)e.ClientX, (float)e.ClientY);
+  }
+
+  public void OnPointerMove(PointerEventArgs e)
+  {
+    if (!pointers.ContainsKey((int)e.PointerId) || viewState == null) return;
+    pointers[(int)e.PointerId] = ((float)e.ClientX, (float)e.ClientY);
+    if (pointers.Count == 1 && isPointerDown) {
+      float dx = (float)e.ClientX - lastPointerX;
+      float dy = (float)e.ClientY - lastPointerY;
+      lastPointerX = (float)e.ClientX;
+      lastPointerY = (float)e.ClientY;
+      float aspect = (float)viewState.CanvasHeight / (float)viewState.CanvasWidth;
+      float viewX = aspect / viewState.Scale;
+      float viewY = 1.0f / viewState.Scale;
+      float newCenterX = viewState.CenterX - (-1.0f * dx / (float)viewState.CanvasWidth / viewX * 2.0f);
+      float newCenterY = viewState.CenterY - (dy / (float)viewState.CanvasHeight / viewY * 2.0f);
+      viewState.UpdateCenter(newCenterX, newCenterY);
+      viewState.WriteToBuffer();
+      Redraw();
+    }
+  }
+
+  public void OnPointerUp(PointerEventArgs e)
+  {
+    isPointerDown = false;
+    pointers.Remove((int)e.PointerId);
+  }
+
+  public void OnWheel(WheelEventArgs e)
+  {
+    if (viewState == null) return;
+    float delta = viewState.Scale * 0.1f * (float)(-e.DeltaY / 100.0f);
+    var newScale = viewState.Scale + delta;
+    if (newScale < 0.0001f || newScale > 2.0f) return;
+    float mouseX = (float)e.ClientX;
+    float mouseY = (float)e.ClientY;
+    float aspect = (float)viewState.CanvasHeight / (float)viewState.CanvasWidth;
+    float viewX = aspect / viewState.Scale;
+    float viewY = 1.0f / viewState.Scale;
+    float normX = mouseX / (float)viewState.CanvasWidth * 2.0f - 1.0f;
+    float normY = mouseY / (float)viewState.CanvasHeight * 2.0f - 1.0f;
+    normX *= -1.0f;
+    float worldMouseX = viewState.CenterX + normX / viewX;
+    float worldMouseY = viewState.CenterY + normY / viewY;
+    viewState.UpdateScale(newScale);
+    float newViewX = aspect / viewState.Scale;
+    float newViewY = 1.0f / viewState.Scale;
+    float newWorldMouseX = viewState.CenterX + normX / newViewX;
+    float newWorldMouseY = viewState.CenterY + normY / newViewY;
+    viewState.UpdateCenter(viewState.CenterX + (worldMouseX - newWorldMouseX), viewState.CenterY + (worldMouseY - newWorldMouseY));
+    viewState.WriteToBuffer();
+    Redraw();
+  }
+
   private unsafe WGPUBuffer create_buffer(void* data, uint size, WGPUBufferUsage usage, WGPUDevice device, WGPUQueue queue)
   {
     var bufferDescriptor = new WGPUBufferDescriptor() {
@@ -343,7 +382,6 @@ fn fs_main(@location(0) vPos : vec2<f32>) -> @location(0) vec4<f32> {
     };
     WGPUBuffer buffer = wgpuDeviceCreateBuffer(device, &bufferDescriptor);
     wgpuQueueWriteBuffer(queue, buffer, 0u, data, size);
-
     return buffer;
   }
 
@@ -360,7 +398,6 @@ fn fs_main(@location(0) vPos : vec2<f32>) -> @location(0) vec4<f32> {
       label = label == default ? null : label.ToPointer(),
     };
     var shaderModule = wgpuDeviceCreateShaderModule(device, &shaderModuleDescriptor);
-
     return shaderModule;
   }
 
@@ -421,89 +458,8 @@ fn fs_main(@location(0) vPos : vec2<f32>) -> @location(0) vec4<f32> {
     wgpuTextureViewRelease(back_buffer);
   }
 
-  private unsafe void UpdateUniformBuffer()
-  {
-    float viewX = (float)canvasHeight / (float)canvasWidth / scale;
-    float viewY = 1.0f / scale;
-    int maxIter = 400;
-    byte* ubData = stackalloc byte[24];
-    float* fptr = (float*)ubData;
-    fptr[0] = centerX;
-    fptr[1] = centerY;
-    fptr[2] = viewX;
-    fptr[3] = viewY;
-    int* iptr = (int*)(ubData + 16);
-    iptr[0] = maxIter;
-    iptr[1] = 0;
-    if (ubuffer != null && queue != null)
-      wgpuQueueWriteBuffer(queue, ubuffer, 0u, ubData, 24u);
-  }
-
   private unsafe void Redraw()
   {
     draw(swapChain, device, queue, pipeline, bindgroup, vbuffer, ibuffer);
-  }
-
-  // Pointer event handlers (mouse/touch/pinch)
-  public void OnPointerDown(PointerEventArgs e)
-  {
-    isPointerDown = true;
-    lastPointerX = (float)e.ClientX;
-    lastPointerY = (float)e.ClientY;
-    pointers[(int)e.PointerId] = ((float)e.ClientX, (float)e.ClientY);
-  }
-
-  public void OnPointerMove(PointerEventArgs e)
-  {
-    if (!pointers.ContainsKey((int)e.PointerId)) return;
-    pointers[(int)e.PointerId] = ((float)e.ClientX, (float)e.ClientY);
-
-    if (pointers.Count == 1 && isPointerDown) {
-      // Pan (mouse or single touch)
-      float dx = (float)e.ClientX - lastPointerX;
-      float dy = (float)e.ClientY - lastPointerY;
-      lastPointerX = (float)e.ClientX;
-      lastPointerY = (float)e.ClientY;
-      float aspect = (float)canvasHeight / (float)canvasWidth;
-      float viewX = aspect / scale;
-      float viewY = 1.0f / scale;
-      centerX -= -1.0f * dx / (float)canvasWidth / viewX * 2.0f;
-      centerY -= dy / (float)canvasHeight / viewY * 2.0f;
-      UpdateUniformBuffer();
-      Redraw();
-    }
-  }
-
-  public void OnPointerUp(PointerEventArgs e)
-  {
-    isPointerDown = false;
-    pointers.Remove((int)e.PointerId);
-    if (pointers.Count < 2) lastPinchDistance = null;
-  }
-
-  public void OnWheel(WheelEventArgs e)
-  {
-    float delta = scale * 0.1f * (float)(-e.DeltaY / 100.0f);
-    if(scale + delta < 0.0001f) return;
-    if(scale + delta > 2.0f) return;
-    float mouseX = (float)e.ClientX;
-    float mouseY = (float)e.ClientY;
-    float aspect = (float)canvasHeight / (float)canvasWidth;
-    float viewX = aspect / scale;
-    float viewY = 1.0f / scale;
-    float normX = mouseX / (float)canvasWidth * 2.0f - 1.0f;
-    float normY = mouseY / (float)canvasHeight * 2.0f - 1.0f;
-    normX *= -1.0f;
-    float worldMouseX = centerX + normX / viewX;
-    float worldMouseY = centerY + normY / viewY;
-    scale += delta;
-    float newViewX = aspect / scale;
-    float newViewY = 1.0f / scale;
-    float newWorldMouseX = centerX + normX / newViewX;
-    float newWorldMouseY = centerY + normY / newViewY;
-    centerX += (worldMouseX - newWorldMouseX);
-    centerY += (worldMouseY - newWorldMouseY);
-    UpdateUniformBuffer();
-    Redraw();
   }
 }
