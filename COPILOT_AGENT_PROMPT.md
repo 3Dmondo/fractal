@@ -101,7 +101,7 @@ Test 3 (manual):
 - On desktop: click-and-drag the canvas to pan; use the mouse wheel to zoom centered at pointer position. Resize the window and confirm Mandelbrot view updates responsively.
 - On mobile: test touch drag to pan and pinch-to-zoom (if implemented). If pinch handled in JS, verify events reach C# and update view.
 
-Step 4 — Improve interaction UX
+Step 4 — Improve interaction UX — COMPLETE
 - Smooth zoom toward pointer by computing world-space pointer location and adjusting center when zooming (same math as `Window.cs`).
 - Add momentum or pinch smoothing only after basic correctness.
 
@@ -111,21 +111,39 @@ Minimal changes:
 Test 4 (manual):
 - Verify zoom focuses on the pointer and panning feels correct.
 
-Step 5 — Refactor and follow SOLID
+Step 5 — Implement window/canvas resize and mobile/touch interaction
+- **Window/canvas resize:**
+  - Detect when the browser window or canvas size changes.
+  - Recompute aspect ratio and view parameters.
+  - Update the uniform buffer and redraw Mandelbrot to fit the new size.
+- **Mobile/touch interaction:**
+  - Add touch event handlers for pan (single finger drag) using Blazor pointer events.
+  - Add pinch-to-zoom (multi-touch) support, preferring Blazor pointer events. Use a JS helper only if Blazor cannot provide required multi-touch data.
+  - Ensure pan/zoom logic matches desktop behavior for consistency.
+
+Minimal changes:
+- Add event handlers and logic for resize and mobile/touch.
+- Update uniform buffer and redraw as needed.
+
+Test 5 (manual):
+- Resize the browser window and confirm Mandelbrot view updates responsively.
+- On mobile: drag to pan, pinch to zoom. Confirm interaction matches desktop.
+
+Step 6 — Refactor and follow SOLID
 - Extract shader strings into small helpers or separate resource files (still kept minimal).
 - Encapsulate view state and uniform buffer logic into a small `WebGpuViewState` class (single responsibility) with methods: `UpdateCenter`, `UpdateScale`, `WriteToBuffer`.
 - Ensure the `Home` component delegates rendering and state update responsibilities to these classes.
 - Keep the public surface of the component minimal for testability.
 
-Test 5 (manual):
+Test 6 (manual):
 - Run and smoke-test all interactions again. Ensure code is readable and unit-testable where possible.
 
-Step 6 — Optional: try double precision
+Step 7 — Optional: try double precision
 - If the single-precision implementation works, attempt to reproduce the algorithm in double precision:
   - WebGPU/WGSL does NOT have built-in 64-bit floats in all implementations; check target browser support. If WGSL supports `f64` on your platform and the Evergine bindings support it, port the shader back to double precision.
 - Alternatively emulate higher precision with techniques such as `vec2<f32>` high/low decomposition.
 
-Test 6 (manual):
+Test 7 (manual):
 - If attempting true double precision, validate results vs single-precision and verify performance.
 
 Safety & debugging guidance
