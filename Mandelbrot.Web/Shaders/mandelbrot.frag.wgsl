@@ -28,6 +28,25 @@ fn mandelbrot(c_re: f32, c_im: f32, maxIter: i32) -> i32 {
     return iter;
 }
 
+fn smooth_color(iter: i32, maxIter: i32) -> vec3<f32> {
+    let t = log(1.0 + f32(iter)) / log(1.0 + f32(maxIter));;
+    // Non-periodic palette: interpolate between blue, cyan, green, yellow, red
+    let c0 = vec3<f32>(0.0, 0.0, 1.0); // blue
+    let c1 = vec3<f32>(0.0, 1.0, 1.0); // cyan
+    let c2 = vec3<f32>(0.0, 1.0, 0.0); // green
+    let c3 = vec3<f32>(1.0, 1.0, 0.0); // yellow
+    let c4 = vec3<f32>(1.0, 0.0, 0.0); // red
+    if (t < 0.25) {
+        return mix(c0, c1, t * 4.0);
+    } else if (t < 0.5) {
+        return mix(c1, c2, (t - 0.25) * 4.0);
+    } else if (t < 0.75) {
+        return mix(c2, c3, (t - 0.5) * 4.0);
+    } else {
+        return mix(c3, c4, (t - 0.75) * 4.0);
+    }
+}
+
 @fragment
 fn fs_main(@location(0) vPos : vec2<f32>) -> @location(0) vec4<f32> {
     let center = uView.center;
@@ -39,23 +58,6 @@ fn fs_main(@location(0) vPos : vec2<f32>) -> @location(0) vec4<f32> {
     if (iter == maxIter) {
         return vec4<f32>(0.0, 0.0, 0.0, 1.0);
     }
-    let level = f32(iter) / f32(maxIter);
-    var value = -log(max(level, 1e-9)) * 10.0;
-    var x = value - floor(value);
-    value = value - floor(value / 6.0) * 6.0;
-    var col: vec3<f32>;
-    if (value < 1.0) {
-        col = vec3<f32>(1.0, x, 0.0);
-    } else if (value < 2.0) {
-        col = vec3<f32>(1.0 - x, 1.0, 0.0);
-    } else if (value < 3.0) {
-        col = vec3<f32>(0.0, 1.0, x);
-    } else if (value < 4.0) {
-        col = vec3<f32>(0.0, 1.0 - x, 1.0);
-    } else if (value < 5.0) {
-        col = vec3<f32>(x, 0.0, 1.0);
-    } else {
-        col = vec3<f32>(1.0, 0.0, 1.0 - x);
-    }
+    let col = smooth_color(iter, maxIter);
     return vec4<f32>(col, 1.0);
 }

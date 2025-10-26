@@ -189,7 +189,7 @@ public partial class Home
     viewState.CenterX = 0.5f;
     viewState.CenterY = 0.0f;
     viewState.Scale = 1.0f;
-    viewState.MaxIter = 400;
+    viewState.MaxIter = 2000;
     viewState.WriteToBuffer();
     var bindGroupEntry = new WGPUBindGroupEntry() {
       binding = 0,
