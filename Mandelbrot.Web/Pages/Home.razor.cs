@@ -3,6 +3,7 @@ using static Evergine.Bindings.WebGPU.WebGPUNative;
 using Microsoft.JSInterop;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using System.Collections.Generic;
 
 namespace Mandelbrot.Web.Pages;
 
@@ -11,6 +12,9 @@ public partial class Home
   [Inject]
   private IJSRuntime JS { get; set; } = default!;
 
+  // Static instance for JSInvokable resize
+  private static Home? _instance;
+
   // Interaction state
   private float centerX = 0.5f;
   private float centerY = 0.0f;
@@ -18,6 +22,10 @@ public partial class Home
   private bool isPointerDown = false;
   private float lastPointerX, lastPointerY;
   private double canvasWidth, canvasHeight;
+
+  // Touch/pinch state
+  private Dictionary<int, (float x, float y)> pointers = new();
+  private float? lastPinchDistance = null;
 
   // WebGPU state
   private unsafe WGPUBuffer ubuffer;
@@ -28,6 +36,8 @@ public partial class Home
   private unsafe WGPUBindGroup bindgroup;
   private unsafe WGPUBuffer vbuffer;
   private unsafe WGPUBuffer ibuffer;
+
+  public Home() { _instance = this; }
 
   protected override async Task OnAfterRenderAsync(bool firstRender)
   {
@@ -49,9 +59,7 @@ public partial class Home
   [JSInvokable]
   public static void OnCanvasResize()
   {
-    // This is a static method, so we need a way to get the current instance
-    // For now, just re-run the pipeline (could be improved)
-    // You may need to use a singleton or static reference to the current Home instance
+    _instance?.Run();
   }
 
   public unsafe void Run()
@@ -407,78 +415,82 @@ fn fs_main(@location(0) vPos : vec2<f32>) -> @location(0) vec4<f32> {
     draw(swapChain, device, queue, pipeline, bindgroup, vbuffer, ibuffer);
   }
 
-  // Pointer event handlers
+  // Pointer event handlers (mouse/touch/pinch)
   public void OnPointerDown(PointerEventArgs e)
   {
     isPointerDown = true;
     lastPointerX = (float)e.ClientX;
     lastPointerY = (float)e.ClientY;
+    pointers[(int)e.PointerId] = ((float)e.ClientX, (float)e.ClientY);
   }
 
   public void OnPointerMove(PointerEventArgs e)
   {
-    if (!isPointerDown) return;
-    float dx = (float)e.ClientX - lastPointerX;
-    float dy = (float)e.ClientY - lastPointerY;
-    lastPointerX = (float)e.ClientX;
-    lastPointerY = (float)e.ClientY;
-    // Convert screen delta to world delta
+    if (!pointers.ContainsKey((int)e.PointerId)) return;
+    pointers[(int)e.PointerId] = ((float)e.ClientX, (float)e.ClientY);
 
-    float aspect = (float)canvasHeight / (float)canvasWidth;
-    float viewX = aspect / scale;
-    float viewY = 1.0f / scale;
-
-    centerX -= -1.0f * dx / (float)canvasWidth / viewX * 2.0f;
-    centerY -= dy / (float)canvasHeight / viewY * 2.0f;
-    UpdateUniformBuffer();
-    Redraw();
+    if (pointers.Count == 1 && isPointerDown) {
+      // Pan (mouse or single touch)
+      float dx = (float)e.ClientX - lastPointerX;
+      float dy = (float)e.ClientY - lastPointerY;
+      lastPointerX = (float)e.ClientX;
+      lastPointerY = (float)e.ClientY;
+      float aspect = (float)canvasHeight / (float)canvasWidth;
+      float viewX = aspect / scale;
+      float viewY = 1.0f / scale;
+      centerX -= -1.0f * dx / (float)canvasWidth / viewX * 2.0f;
+      centerY -= dy / (float)canvasHeight / viewY * 2.0f;
+      UpdateUniformBuffer();
+      Redraw();
+    }
+    else if (pointers.Count == 2) {
+      // Pinch-to-zoom
+      var pts = new List<(float x, float y)>(pointers.Values);
+      float dx = pts[0].x - pts[1].x;
+      float dy = pts[0].y - pts[1].y;
+      float dist = MathF.Sqrt(dx * dx + dy * dy);
+      if (lastPinchDistance != null) {
+        float pinchDelta = dist - lastPinchDistance.Value;
+        float pinchScale = 1.0f + pinchDelta / 200.0f; // scale factor
+        float newScale = scale * pinchScale;
+        if (newScale < 0.0001f || newScale > 2.0f) return;
+        scale = newScale;
+        UpdateUniformBuffer();
+        Redraw();
+      }
+      lastPinchDistance = dist;
+    }
   }
 
   public void OnPointerUp(PointerEventArgs e)
   {
     isPointerDown = false;
+    pointers.Remove((int)e.PointerId);
+    if (pointers.Count < 2) lastPinchDistance = null;
   }
 
   public void OnWheel(WheelEventArgs e)
   {
     float delta = scale * 0.1f * (float)(-e.DeltaY / 100.0f);
-    if(scale + delta < 0.0001f) return; // prevent zooming too far out
-    if(scale + delta > 2.0f) return; // prevent zooming too far in
-
-
-    // Zoom at pointer position (OpenGL logic)
+    if(scale + delta < 0.0001f) return;
+    if(scale + delta > 2.0f) return;
     float mouseX = (float)e.ClientX;
     float mouseY = (float)e.ClientY;
-
     float aspect = (float)canvasHeight / (float)canvasWidth;
     float viewX = aspect / scale;
     float viewY = 1.0f / scale;
-
-    // Map mouse position to [-1, 1] range
     float normX = mouseX / (float)canvasWidth * 2.0f - 1.0f;
     float normY = mouseY / (float)canvasHeight * 2.0f - 1.0f;
-
-    // Invert X axis to match OpenGL logic
     normX *= -1.0f;
-
-    // Compute world mouse position before zoom
     float worldMouseX = centerX + normX / viewX;
     float worldMouseY = centerY + normY / viewY;
-
     scale += delta;
-
-    // Compute new view after zoom
     float newViewX = aspect / scale;
     float newViewY = 1.0f / scale;
-
-    // Compute world mouse position after zoom
     float newWorldMouseX = centerX + normX / newViewX;
     float newWorldMouseY = centerY + normY / newViewY;
-
-    // Adjust center so zoom is focused at pointer
     centerX += (worldMouseX - newWorldMouseX);
     centerY += (worldMouseY - newWorldMouseY);
-
     UpdateUniformBuffer();
     Redraw();
   }
