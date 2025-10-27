@@ -12,7 +12,7 @@
             <button class="close-btn" @onclick="HideHelpOverlay">&#10005;</button>
             <h2>Mandelbrot Web Demo</h2>
             <p>
-                This page renders the <a href="https://en.wikipedia.org/wiki/Mandelbrot_set" target="_blank" rel="noopener noreferrer">Mandelbrot set</a> 
+                This page renders the <a href="https://en.wikipedia.org/wiki/Mandelbrot_set" target="_blank" rel="noopener noreferrer">Mandelbrot set</a>
                 using WebGPU in your browser.<br />
                 <ul>
                     <li>Pan: Drag with mouse or touch</li>
@@ -37,12 +37,17 @@
 </canvas>
 
 <style>
-    html, body { margin:0; padding:0; height:100%; }
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+    }
+
     .sim-canvas {
-      width:100vw;
-      height:100vh;
-      display:block;
-      background:#000; /* ensure visible area */
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        background: #000; /* ensure visible area */
     }
 
     .help-btn {
@@ -61,12 +66,17 @@
         z-index: 1001;
         transition: background 0.2s;
         display: flex;
-        align-items: center; 
+        align-items: center;
         justify-content: center;
+        outline: none;
+        user-select: none;
+        caret-color: transparent;
     }
-
         .help-btn:hover {
             background: #444;
+        }
+        .help-btn:focus {
+            outline: none; /* Ensure no outline on focus */
         }
 
     .help-overlay {
