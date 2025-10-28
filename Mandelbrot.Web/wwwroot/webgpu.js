@@ -56,7 +56,7 @@
         evt.preventDefault();
         const info = getTouchInfo(evt);
         if (lastDist != null && info) {
-          const scaleDelta = info.dist / lastDist;
+          const scaleDelta = -info.dist / lastDist;
           window.DotNet && window.DotNet.invokeMethodAsync && window.DotNet.invokeMethodAsync(
             'Mandelbrot.Web', 'OnPinch', info.centerX, info.centerY, scaleDelta
           );
